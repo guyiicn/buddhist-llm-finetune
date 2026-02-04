@@ -1,0 +1,141 @@
+# 佛经数据处理配置
+
+# 数据来源配置
+sources:
+  cbeta_api: "https://cbetaonline.dila.edu.tw/api"
+  
+# 佛经十三经 + 五部重要论典
+sutras:
+  # ===== 般若部 =====
+  - id: "T0235"
+    name: "金刚般若波罗蜜经"
+    short_name: "金刚经"
+    category: "般若部"
+  - id: "T0251"
+    name: "般若波罗蜜多心经"
+    short_name: "心经"
+    category: "般若部"
+  
+  # ===== 法华部 =====
+  - id: "T0262"
+    name: "妙法莲华经"
+    short_name: "法华经"
+    category: "法华部"
+  
+  # ===== 净土三经 =====
+  - id: "T0366"
+    name: "佛说阿弥陀经"
+    short_name: "阿弥陀经"
+    category: "净土部"
+  - id: "T0360"
+    name: "佛说无量寿经"
+    short_name: "无量寿经"
+    category: "净土部"
+  - id: "T0365"
+    name: "观无量寿佛经"
+    short_name: "观经"
+    category: "净土部"
+  
+  # ===== 楞严部 =====
+  - id: "T0945"
+    name: "大佛顶如来密因修证了义诸菩萨万行首楞严经"
+    short_name: "楞严经"
+    category: "经集部"
+  
+  # ===== 楞伽部 =====
+  - id: "T0670"
+    name: "楞伽阿跋多罗宝经"
+    short_name: "楞伽经"
+    category: "经集部"
+  
+  # ===== 解深密经 =====
+  - id: "T0676"
+    name: "解深密经"
+    short_name: "解深密经"
+    category: "经集部"
+  
+  # ===== 维摩诘经 =====
+  - id: "T0475"
+    name: "维摩诘所说经"
+    short_name: "维摩诘经"
+    category: "经集部"
+  
+  # ===== 圆觉经 =====
+  - id: "T0842"
+    name: "大方广圆觉修多罗了义经"
+    short_name: "圆觉经"
+    category: "经集部"
+  
+  # ===== 禅宗 =====
+  - id: "T2008"
+    name: "六祖大师法宝坛经"
+    short_name: "坛经"
+    category: "禅宗"
+  
+  # ===== 阿含部（原始佛教）=====
+  - id: "T0099"
+    name: "杂阿含经"
+    short_name: "杂阿含"
+    category: "阿含部"
+
+# ===== 五部重要论典 =====
+treatises:
+  - id: "T1666"
+    name: "大乘起信论"
+    short_name: "起信论"
+    author: "马鸣菩萨"
+    category: "论部"
+  
+  - id: "T1564"
+    name: "中论"
+    short_name: "中论"
+    author: "龙树菩萨"
+    category: "中观部"
+  
+  - id: "T1579"
+    name: "瑜伽师地论"
+    short_name: "瑜伽论"
+    author: "弥勒菩萨/无著"
+    category: "瑜伽部"
+  
+  - id: "T1585"
+    name: "成唯识论"
+    short_name: "成唯识论"
+    author: "护法等/玄奘译"
+    category: "唯识部"
+  
+  - id: "T1509"
+    name: "大智度论"
+    short_name: "大智度论"
+    author: "龙树菩萨"
+    category: "释经论"
+
+# QA 生成配置
+qa_generation:
+  provider: "ollama"
+  
+  ollama:
+    base_url: "http://localhost:11434"
+    model: "qwen2.5:14b"
+  
+  openai:
+    api_key: "your-api-key"
+    model: "gpt-4"
+    base_url: "https://api.openai.com/v1"
+  
+  qa_per_chunk: 3
+  chunk_size: 500
+
+# 数据清洗配置
+cleaning:
+  min_answer_length: 50
+  max_answer_length: 1500
+  remove_patterns:
+    - "\\[\\d+\\]"
+    - "【.*?】"
+
+# 输出配置
+output:
+  format: "alpaca"
+  train_ratio: 0.9
+  seed: 42

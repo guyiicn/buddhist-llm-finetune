@@ -1,0 +1,9 @@
+{
+  "total": 12,
+  "train": 10,
+  "validation": 2,
+  "seed_count": 12,
+  "generated_count": 0,
+  "format": "alpaca",
+  "train_ratio": 0.9
+}
