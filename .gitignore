@@ -24,11 +24,8 @@ env/
 *.log
 nohup.out
 
-# Model Checkpoints (too large for git)
+# Model Checkpoints (intermediate checkpoints)
 saves/*/checkpoint-*/
-*.safetensors
-*.bin
-!adapter_config.json
 
 # Temporary files
 .DS_Store
