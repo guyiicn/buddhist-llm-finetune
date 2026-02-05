@@ -1,4 +1,4 @@
-model_name_or_path: Qwen/Qwen2.5-3B-Instruct
+model_name_or_path: Qwen/Qwen2.5-7B-Instruct
 trust_remote_code: true
 
 stage: sft
@@ -9,14 +9,14 @@ lora_alpha: 64
 lora_dropout: 0.05
 lora_target: all
 
-dataset_dir: /home/guyii/buddhist_data
+dataset_dir: ./output
 dataset: buddhist_train
 eval_dataset: buddhist_val
 template: qwen
 cutoff_len: 1024
 preprocessing_num_workers: 4
 
-output_dir: /home/guyii/buddhist_data/saves/qwen2.5-3b-buddhist-lora
+output_dir: ./saves/qwen2.5-7b-buddhist-lora
 logging_steps: 5
 save_steps: 50
 eval_steps: 50

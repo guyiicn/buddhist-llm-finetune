@@ -2,123 +2,147 @@
 # -*- coding: utf-8 -*-
 """
 佛经数据获取脚本
-从 CBETA 获取佛经原文
+从本地 CBETA 文本库提取佛经原文
+
+CBETA 目录结构：
+  /home/nvidia/cbeta/cbeta-text/T/{经号}/
+    {经号}_001.txt, {经号}_002.txt, ...  (多卷经典)
+    {经号}.yaml                          (元数据)
+
+文本格式：
+  - 前 N 行以 # 开头为文件头注释
+  - 之后为经文正文（繁体中文）
 """
 
-import requests
 import json
+import re
 import yaml
 from pathlib import Path
 from typing import List, Dict
-import re
+
+# ============================================================
+# 配置
+# ============================================================
+
+CBETA_BASE = Path("/home/nvidia/cbeta/cbeta-text/T")
+
+# 对超大经典设置最大提取字符数，避免数据量过大
+# 小经全量提取，大经/大论取有代表性的前 N 字符
+MAX_CHARS = {
+    "T0099": 60000,  # 杂阿含经 50卷 1.9MB → 取前6万字(约前10卷核心内容)
+    "T1579": 50000,  # 瑜伽师地论 100卷 3.1MB → 取前5万字
+    "T1509": 50000,  # 大智度论 100卷 3.7MB → 取前5万字
+    "T0262": 80000,  # 法华经 7卷 304K → 基本全取
+    "T0945": 80000,  # 楞严经 10卷 284K → 基本全取
+}
+
+DEFAULT_MAX_CHARS = 200000  # 默认上限(足以容纳大部分经典全文)
 
 
 def load_config() -> Dict:
-    """加载配置文件"""
+    """加载项目配置"""
     config_path = Path(__file__).parent.parent / "config.yaml"
     with open(config_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
-def clean_text(text: str) -> str:
-    """清洗文本"""
-    # 移除注释编号
+def strip_header(text: str) -> str:
+    """去除 CBETA 文件头部的注释行"""
+    lines = text.split("\n")
+    content_lines = []
+    header_done = False
+    for line in lines:
+        if not header_done:
+            if line.startswith("#"):
+                continue
+            # 跳过紧跟注释后的空行
+            if line.strip() == "" and not content_lines:
+                continue
+            header_done = True
+        content_lines.append(line)
+    return "\n".join(content_lines)
+
+
+def clean_cbeta_text(text: str) -> str:
+    """清洗 CBETA 文本
+
+    保留经文正文，去除：
+    - CBETA 行首页码标记 (如 T08n0235_p0749a01 等)
+    - 校勘记引用 [1], [2] 等
+    - 过多空行
+    """
+    # 去除 CBETA 页码行标 (行首的 Txxnxxxx_pxxxxxx 格式)
+    text = re.sub(r"^T\d+n\d+_p\d+[a-z]\d+.*$", "", text, flags=re.MULTILINE)
+
+    # 去除校勘记编号 [1] [2] 等
     text = re.sub(r"\[\d+\]", "", text)
-    # 移除括号注释
-    text = re.sub(r"【.*?】", "", text)
-    text = re.sub(r"（.*?）", "", text)
-    # 移除多余空行
+
+    # 去除 CBETA XML 残留标记
+    text = re.sub(r"<[^>]+>", "", text)
+
+    # 规范化空行（3个以上连续空行→2个）
     text = re.sub(r"\n{3,}", "\n\n", text)
+
+    # 去除行首行尾多余空格
+    lines = [line.strip() for line in text.split("\n")]
+    text = "\n".join(lines)
+
+    # 去除首尾空白
     return text.strip()
 
 
-def fetch_sutra_from_cbeta(sutra_id: str) -> str:
+def extract_sutra(sutra_id: str) -> str:
+    """从 CBETA 本地文件提取指定经典的全文
+
+    支持单卷和多卷经典。
+    多卷按文件名排序后拼接。
     """
-    从 CBETA API 获取佛经
-    注意：实际使用时需要替换为真实的 API 端点
-    """
-    # CBETA 没有直接的 API，这里提供一个模拟接口
-    # 实际使用时，可以从其他来源获取文本
+    sutra_dir = CBETA_BASE / sutra_id
 
-    # 示例：返回占位文本
-    return f"[佛经 {sutra_id} 的内容]"
+    if not sutra_dir.exists():
+        print(f"  ⚠ 目录不存在: {sutra_dir}")
+        return ""
 
+    # 获取所有 txt 文件（排除 yaml）
+    txt_files = sorted(sutra_dir.glob(f"{sutra_id}_*.txt"))
 
-def fetch_sutra_from_local(sutra_id: str, sutra_name: str) -> str:
-    """
-    从本地或硬编码数据获取佛经
-    用于演示目的
-    """
+    if not txt_files:
+        print(f"  ⚠ 没有找到文本文件: {sutra_dir}")
+        return ""
 
-    # 硬编码一些佛经片段作为示例
-    sample_texts = {
-        "T0235": {
-            "name": "金刚般若波罗蜜经",
-            "content": """
-如是我闻。一时，佛在舍卫国祇树给孤独园，与大比丘众千二百五十人俱。
-尔时，世尊食时，着衣持钵，入舍卫大城乞食。于其城中，次第乞已，还至本处。饭食讫，收衣钵，洗足已，敷座而坐。
-尔时，长老须菩提在大众中即从座起，偏袒右肩，右膝着地，合掌恭敬而白佛言：「希有！世尊！如来善护念诸菩萨，善付嘱诸菩萨。」
-""",
-        },
-        "T0251": {
-            "name": "般若波罗蜜多心经",
-            "content": """
-观自在菩萨，行深般若波罗蜜多时，照见五蕴皆空，度一切苦厄。
-舍利子，色不异空，空不异色，色即是空，空即是色，受想行识，亦复如是。
-舍利子，是诸法空相，不生不灭，不垢不净，不增不减。
-""",
-        },
-        "T0670": {
-            "name": "楞伽阿跋多罗宝经",
-            "content": """
-如是我闻。一时，婆伽婆在大海中，入娑罗多龙王宫殿，与无量菩萨摩诃萨俱，皆得如来灌顶，住诸菩萨所得三昧，其名曰：海月菩萨、解脱月菩萨、普智菩萨、无边智菩萨。
-时，婆伽婆在此海中龙王宫殿，现大神力，震动大海，令龙王宫殿及大海中众生命，皆得安隐。
-""",
-        },
-        "T0676": {
-            "name": "解深密经",
-            "content": """
-如是我闻。一时，薄伽梵在解甚深义意，超过诸菩萨三摩地，名为如来出现，与无量大声闻众、菩萨摩诃萨众俱。
-尔时，薄伽婆告最胜子曰：「善哉善哉！汝能请问如来如是甚深义，多所安隐一切众生，令得无上正等菩提。」
-""",
-        },
-        "T0475": {
-            "name": "维摩诘所说经",
-            "content": """
-如是我闻。一时，佛在毗耶离庵罗树园，与大比丘众八千人俱，菩萨三万二千人，众所知识。
-尔时，毗耶离大城中有长者，名曰维摩诘，已曾供养无量诸佛，深植善本，得无生忍，辩才无碍，游戏神通。
-""",
-        },
-        "T0842": {
-            "name": "大方广圆觉修多罗了义经",
-            "content": """
-如是我闻。一时婆伽婆入于神通大光明藏三昧正受，一切如来光严住持，是诸众生清净觉地。
-身心寂灭平等本际，圆满十方，不二随顺，于不二境，现诸净土。
-""",
-        },
-        "T2008": {
-            "name": "六祖大师法宝坛经",
-            "content": """
-时，大师至宝林，韶州韦刺史与官僚入山请师，出于城中大梵寺讲堂，为众开缘说法。
-师曰：「善知识！菩提自性，本来清净，但用此心，直了成佛。」
-""",
-        },
-        "T0099": {
-            "name": "杂阿含经",
-            "content": """
-如是我闻。一时，佛住舍卫国祇树给孤独园。
-尔时，世尊告诸比丘：「当观色无常。如是观者，则为正观。正观者，则生厌离；厌离者，喜贪尽；喜贪尽者，说心解脱。」
-""",
-        },
-    }
+    max_chars = MAX_CHARS.get(sutra_id, DEFAULT_MAX_CHARS)
+    collected = []
+    total_len = 0
 
-    if sutra_id in sample_texts:
-        return sample_texts[sutra_id]["content"]
-    else:
-        return f"[佛经 {sutra_name} ({sutra_id}) 的内容将在这里]"
+    for txt_file in txt_files:
+        raw = txt_file.read_text(encoding="utf-8")
+        content = strip_header(raw)
+        content = clean_cbeta_text(content)
+
+        if not content:
+            continue
+
+        # 检查是否超过上限
+        if total_len + len(content) > max_chars:
+            remaining = max_chars - total_len
+            if remaining > 500:  # 至少保留500字才值得加
+                # 在段落边界截断
+                truncated = content[:remaining]
+                last_para = truncated.rfind("\n\n")
+                if last_para > remaining * 0.7:
+                    truncated = truncated[:last_para]
+                collected.append(truncated)
+                total_len += len(truncated)
+            break
+
+        collected.append(content)
+        total_len += len(content)
+
+    full_text = "\n\n".join(collected)
+    return full_text
 
 
-def save_raw_text(sutra_data: Dict, config: Dict):
+def save_raw_text(sutra_data: List[Dict]):
     """保存原始文本到 raw 目录"""
     raw_dir = Path(__file__).parent.parent / "raw"
     raw_dir.mkdir(exist_ok=True)
@@ -128,31 +152,47 @@ def save_raw_text(sutra_data: Dict, config: Dict):
         filepath = raw_dir / filename
 
         with open(filepath, "w", encoding="utf-8") as f:
-            f.write(f"# {sutra['name']}\n")
-            f.write(f"# ID: {sutra['id']}\n")
-            f.write(f"# 分类: {sutra.get('category', '未分类')}\n\n")
             f.write(sutra["content"])
             f.write("\n")
 
-        print(f"✓ 已保存: {filename}")
+        char_count = len(sutra["content"])
+        print(f"  ✓ {filename} ({char_count:,} 字)")
 
 
 def main():
     print("=" * 60)
-    print("佛经数据获取脚本")
+    print("佛经数据提取脚本 (从本地 CBETA 文本库)")
     print("=" * 60)
+    print(f"\nCBETA 路径: {CBETA_BASE}")
+    print(f"CBETA 存在: {CBETA_BASE.exists()}")
+
+    if not CBETA_BASE.exists():
+        print("❌ 错误: CBETA 文本库路径不存在!")
+        print("请确认 /home/nvidia/cbeta/cbeta-text/T/ 目录存在")
+        return
 
     # 加载配置
     config = load_config()
 
     # 合并经和论
     all_texts = []
+    total_chars = 0
 
     # 获取经
+    print("\n--- 提取经典 ---")
     for sutra in config["sutras"]:
-        print(f"\n正在获取: {sutra['name']} ({sutra['id']})")
+        print(f"\n提取: {sutra['name']} ({sutra['id']})")
 
-        content = fetch_sutra_from_local(sutra["id"], sutra["short_name"])
+        content = extract_sutra(sutra["id"])
+        if not content:
+            print(f"  ⚠ 跳过（无内容）: {sutra['id']}")
+            continue
+
+        total_chars += len(content)
+        print(f"  提取: {len(content):,} 字")
+
+        if sutra["id"] in MAX_CHARS:
+            print(f"  (上限: {MAX_CHARS[sutra['id']]:,} 字)")
 
         all_texts.append(
             {
@@ -165,11 +205,21 @@ def main():
         )
 
     # 获取论
+    print("\n--- 提取论典 ---")
     if "treatises" in config:
         for treatise in config["treatises"]:
-            print(f"\n正在获取: {treatise['name']} ({treatise['id']})")
+            print(f"\n提取: {treatise['name']} ({treatise['id']})")
 
-            content = fetch_sutra_from_local(treatise["id"], treatise["short_name"])
+            content = extract_sutra(treatise["id"])
+            if not content:
+                print(f"  ⚠ 跳过（无内容）: {treatise['id']}")
+                continue
+
+            total_chars += len(content)
+            print(f"  提取: {len(content):,} 字")
+
+            if treatise["id"] in MAX_CHARS:
+                print(f"  (上限: {MAX_CHARS[treatise['id']]:,} 字)")
 
             all_texts.append(
                 {
@@ -184,17 +234,23 @@ def main():
 
     # 保存
     print("\n" + "=" * 60)
-    print("保存原始文本...")
-    save_raw_text(all_texts, config)
+    print("保存文件...")
+    save_raw_text(all_texts)
 
     # 保存元数据
     meta_file = Path(__file__).parent.parent / "raw" / "metadata.json"
     with open(meta_file, "w", encoding="utf-8") as f:
         json.dump(all_texts, f, ensure_ascii=False, indent=2)
+    print(f"\n✓ 元数据: metadata.json")
 
-    print(f"\n✓ 元数据已保存: metadata.json")
-    print(f"\n✓ 总计获取: {len(all_texts)} 部经典")
-    print("=" * 60)
+    # 统计
+    print(f"\n{'=' * 60}")
+    print(f"提取完成!")
+    print(f"  经典数量: {len(all_texts)} 部")
+    print(f"  总文本量: {total_chars:,} 字")
+    print(f"  预计分块: ~{total_chars // 500} 个 (chunk_size=500)")
+    print(f"  预计 QA:  ~{(total_chars // 500) * 3} 条 (3 QA/chunk)")
+    print(f"{'=' * 60}")
 
 
 if __name__ == "__main__":

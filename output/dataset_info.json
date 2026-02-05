@@ -1,0 +1,20 @@
+{
+  "buddhist_train": {
+    "file_name": "buddhist_train_alpaca.json",
+    "formatting": "alpaca",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output"
+    }
+  },
+  "buddhist_val": {
+    "file_name": "buddhist_val_alpaca.json",
+    "formatting": "alpaca",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output"
+    }
+  }
+}

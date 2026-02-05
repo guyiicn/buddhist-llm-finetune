@@ -1,7 +1,7 @@
 {
-  "total": 12,
-  "train": 10,
-  "validation": 2,
+  "total": 4386,
+  "train": 3947,
+  "validation": 439,
   "seed_count": 12,
   "generated_count": 0,
   "format": "alpaca",
